@@ -51,12 +51,17 @@
 #include "kfinddialog.h"
 #include "kfind.h"
 #include "kreplace.h"
+#include "spellingmenu.h"
+
+Q_LOGGING_CATEGORY(ktextedit, "ktextwidgets.ktextedit", QtMsgType::QtWarningMsg)
 
 class KTextDecorator : public Sonnet::SpellCheckDecorator
 {
 public:
     explicit KTextDecorator(KTextEdit *textEdit);
     bool isSpellCheckingEnabledForBlock(const QString &textBlock) const override;
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
 private:
     KTextEdit *m_textEdit;
 };
@@ -67,15 +72,18 @@ public:
     Private(KTextEdit *_parent)
         : parent(_parent),
           languagesMenu(nullptr),
+          spellingMenu(nullptr),
           customPalette(false),
           spellCheckingEnabled(false),
           findReplaceEnabled(true),
           showTabAction(true),
           showAutoCorrectionButton(false),
+          useSonnetMenu(true),
           decorator(nullptr), speller(nullptr), findDlg(nullptr), find(nullptr), repDlg(nullptr), replace(nullptr),
 #ifdef HAVE_SPEECH
           textToSpeech(nullptr),
 #endif
+          showSpellSuggestCount(5),     // arbitrary default value
           findIndex(0), repIndex(0),
           lastReplacedPosition(-1)
     {
@@ -135,12 +143,14 @@ public:
     QAction *allowTab;
     QAction *spellCheckAction;
     QMenu *languagesMenu;
+    SpellingMenu *spellingMenu;
     bool customPalette : 1;
 
     bool spellCheckingEnabled : 1;
     bool findReplaceEnabled: 1;
     bool showTabAction: 1;
     bool showAutoCorrectionButton: 1;
+    bool useSonnetMenu: 1;
     QTextDocumentFragment originalDoc;
     QString spellCheckingLanguage;
     Sonnet::SpellCheckDecorator *decorator;
@@ -153,6 +163,7 @@ public:
     QTextToSpeech *textToSpeech;
 #endif
 
+    int showSpellSuggestCount;
     int findIndex, repIndex;
     int lastReplacedPosition;
 };
@@ -319,6 +330,14 @@ KTextDecorator::KTextDecorator(KTextEdit *textEdit):
 bool KTextDecorator::isSpellCheckingEnabledForBlock(const QString &textBlock) const
 {
     return m_textEdit->shouldBlockBeSpellChecked(textBlock);
+}
+
+bool KTextDecorator::eventFilter(QObject *obj, QEvent *event)
+{
+    if (m_textEdit->useSonnetMenu()) {
+        return Sonnet::SpellCheckDecorator::eventFilter(obj, event);
+    }
+    return false;
 }
 
 KTextEdit::KTextEdit(const QString &text, QWidget *parent)
@@ -522,6 +541,32 @@ void KTextEdit::deleteWordForward()
     deleteWord(textCursor(), QTextCursor::WordRight);
 }
 
+void KTextEdit::replaceText(QTextCursor cursor, const QString &replacement)
+{
+    setTextCursor(cursor);
+    textCursor().insertText(replacement);
+}
+
+void KTextEdit::setUseSonnetMenu(bool useSonnet)
+{
+    d->useSonnetMenu = useSonnet;
+}
+
+bool KTextEdit::useSonnetMenu() const
+{
+    return d->useSonnetMenu;
+}
+
+void KTextEdit::setShowSpellSuggestCount(int count)
+{
+    d->showSpellSuggestCount = count;
+}
+
+int KTextEdit::showSpellSuggestCount() const
+{
+    return d->showSpellSuggestCount;
+}
+
 QMenu *KTextEdit::mousePopupMenu()
 {
     QMenu *popup = createStandardContextMenu();
@@ -564,7 +609,12 @@ QMenu *KTextEdit::mousePopupMenu()
             if (emptyDocument) {
                 d->spellCheckAction->setEnabled(false);
             }
+
             if (checkSpellingEnabled()) {
+                if (!emptyDocument && !useSonnetMenu() && d->spellingMenu) {
+                    insertSpellingSuggestions(popup, d->spellingMenu, d->showSpellSuggestCount);
+                }
+
                 d->languagesMenu = new QMenu(i18n("Spell Checking Language"), popup);
                 QActionGroup *languagesGroup = new QActionGroup(d->languagesMenu);
                 languagesGroup->setExclusive(true);
@@ -635,6 +685,43 @@ QMenu *KTextEdit::mousePopupMenu()
     return popup;
 }
 
+void KTextEdit::insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu, int topResultCount, int atIndex) {
+    if (!popupMenu || !spellingMenu || !spellingMenu->isWordMisspelled()) return;
+
+    QStringList suggestions { spellingMenu->suggestions() };
+    QString word { spellingMenu->word() };
+    int topResultsToShowCount { topResultCount < suggestions.size() ? topResultCount : suggestions.size() };
+
+    qCDebug(ktextedit,
+        "Add top %d spelling suggestions for '%s' to top level of context menu for easy-access.",
+        topResultsToShowCount, word.toStdString().c_str());
+
+    int startingIndex { atIndex < popupMenu->actions().size() ? atIndex : 0 };
+    int i {0};
+    while (i < topResultsToShowCount) {
+        QString suggestion { suggestions.at(i) };
+
+        qCDebug(ktextedit,
+            "Adding suggestion '%s' to context menu.", suggestion.toStdString().c_str());
+
+        QAction *action { new QAction(suggestion, popupMenu) };
+        connect(action, &QAction::triggered,
+            [=](bool) {
+                qCDebug(ktextedit, "Replacing '%s' with '%s'.",
+                        word.toStdString().c_str(),
+                        suggestion.toStdString().c_str());
+
+                        spellingMenu->replaceWordBySuggestion(suggestion);
+                    });
+        popupMenu->insertAction(popupMenu->actions().at(startingIndex + i++), action);
+    }
+
+    popupMenu->insertSeparator(popupMenu->actions().at(startingIndex + i++));
+    popupMenu->insertMenu(popupMenu->actions().at(startingIndex + i++), spellingMenu);
+    popupMenu->insertSeparator(popupMenu->actions().at(startingIndex + i++));
+    spellingMenu->setParent(popupMenu, popupMenu->windowFlags());
+}
+
 void KTextEdit::slotSpeakText()
 {
 #ifdef HAVE_SPEECH
@@ -653,12 +740,37 @@ void KTextEdit::slotSpeakText()
 
 void KTextEdit::contextMenuEvent(QContextMenuEvent *event)
 {
+    if (checkSpellingEnabled() && !useSonnetMenu()) {
+        createSpellingMenu(event);
+    }
+
     QMenu *popup = mousePopupMenu();
+
     if (popup) {
         aboutToShowContextMenu(popup);
         popup->exec(event->globalPos());
         delete popup;
     }
+}
+
+void KTextEdit::createSpellingMenu(QContextMenuEvent *event)
+{
+    QTextCursor cursor;
+    if (event->reason() == QContextMenuEvent::Mouse) {
+        cursor = cursorForPosition(event->pos());
+    } else {
+        cursor = textCursor();
+    }
+    cursor.select(QTextCursor::WordUnderCursor);
+
+    d->spellingMenu = new SpellingMenu(nullptr, d->decorator->highlighter(), cursor.selectedText());
+
+    connect(d->spellingMenu,
+            &SpellingMenu::replaceWordBySuggestion,
+            this,
+            [=](const QString &suggestion) {
+                replaceText(cursor, suggestion);
+            });
 }
 
 void KTextEdit::createHighlighter()

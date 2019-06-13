@@ -24,6 +24,12 @@
 
 #include <sonnet/highlighter.h>
 #include <QTextEdit>
+#include <QLoggingCategory>
+
+class SpellingMenu;
+
+Q_DECLARE_LOGGING_CATEGORY(ktextwidgets)
+
 namespace Sonnet {
 class SpellCheckDecorator;
 }
@@ -224,6 +230,40 @@ public:
      */
     void forceSpellChecking();
 
+    /**
+     * @brief setUseSonnetMenu set flag that determines whether inline spell-
+     * checking is performed using the built-in Sonnet spell-check menu
+     * @param useSonnet set to @c true to use the Sonnet menu, @c false to use
+     * the standard menu
+     * @see useSonnetMenu()
+     */
+    void setUseSonnetMenu(bool useSonnet);
+
+    /**
+     * @brief useSonnetMenu
+     * @return @c true if editor uses Sonnet menu for inline spell-checking,
+     * @c false if the standard context menu will be used
+     * @default @c true
+     * @see setUseSonnetMenu()
+     */
+    bool useSonnetMenu() const;
+
+    /**
+     * @brief setShowSpellSuggestCount set the maximum number of spelling
+     * suggestions to show at the top level of the context menu
+     * @param count the new value for @c showSpellSuggestCount
+     * @see showSpellSuggestCount()
+     */
+    void setShowSpellSuggestCount(int count);
+
+    /**
+     * @brief showSpellSuggestCount
+     * @return maximum count of spelling suggestions to show at the top level
+     * of the context menu
+     * @see setShowSpellSuggestCount()
+     */
+    int showSpellSuggestCount() const;
+
 Q_SIGNALS:
     /**
      * emit signal when we activate or not autospellchecking
@@ -379,10 +419,35 @@ protected:
     virtual void deleteWordForward();
 
     /**
+     * @brief replaceText Replace @p cursor selection with @p replacement
+     * @param replacement the word that will replace the @p cursor selection
+     * @param cursor contains selection to be replaced by @p replacement
+     */
+    void replaceText(QTextCursor cursor, const QString &replacement);
+
+    /**
      * Reimplemented from QTextEdit to add spelling related items
      * when appropriate.
      */
     void contextMenuEvent(QContextMenuEvent *) override;
+
+    /**
+     * @brief createSpellingMenu Create new spelling menu for a pending context menu
+     * @param event triggered the menu which will contain a spelling menu
+     */
+    void createSpellingMenu(QContextMenuEvent *event);
+
+    /**
+     * @brief insertSpellingSuggestions Insert top suggestions and spelling menu into context menu
+     * @param popupMenu the intended parent context menu
+     * @param spellingMenu the spelling menu to add, which also has spelling
+     * information, such as the list of suggestions
+     * @param topResultCount the number of spelling suggestions to show at the
+     * top level of the context menu
+     * @param atIndex the desired starting index of the spelling suggestions
+     * in the parent context menu; defaults to the top-most part of the menu (index 0).
+     */
+    void insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu, int topResultCount, int atIndex = 0);
 
 private:
     class Private;
