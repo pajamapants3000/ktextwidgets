@@ -9,6 +9,7 @@ set(ktextwidgets_LIB_SRCS
   widgets/ktextedit.cpp
   widgets/nestedlisthelper.cpp
   widgets/kpluralhandlingspinbox.cpp
+  widgets/spellingmenu.cpp
 )
 
 add_library(KF5TextWidgets ${ktextwidgets_LIB_SRCS})
