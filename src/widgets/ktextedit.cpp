@@ -53,8 +53,6 @@
 #include "kreplace.h"
 #include "spellingmenu.h"
 
-Q_LOGGING_CATEGORY(ktextedit, "ktextwidgets.ktextedit", QtMsgType::QtWarningMsg)
-
 class KTextDecorator : public Sonnet::SpellCheckDecorator
 {
 public:
@@ -692,27 +690,14 @@ void KTextEdit::insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spelli
     QString word { spellingMenu->word() };
     int topResultsToShowCount { topResultCount < suggestions.size() ? topResultCount : suggestions.size() };
 
-    qCDebug(ktextedit,
-        "Add top %d spelling suggestions for '%s' to top level of context menu for easy-access.",
-        topResultsToShowCount, word.toStdString().c_str());
-
     int startingIndex { atIndex < popupMenu->actions().size() ? atIndex : 0 };
     int i {0};
     while (i < topResultsToShowCount) {
         QString suggestion { suggestions.at(i) };
 
-        qCDebug(ktextedit,
-            "Adding suggestion '%s' to context menu.", suggestion.toStdString().c_str());
-
         QAction *action { new QAction(suggestion, popupMenu) };
         connect(action, &QAction::triggered,
-            [=](bool) {
-                qCDebug(ktextedit, "Replacing '%s' with '%s'.",
-                        word.toStdString().c_str(),
-                        suggestion.toStdString().c_str());
-
-                        spellingMenu->replaceWordBySuggestion(suggestion);
-                    });
+            [=](bool) { spellingMenu->replaceWordBySuggestion(suggestion); });
         popupMenu->insertAction(popupMenu->actions().at(startingIndex + i++), action);
     }
 

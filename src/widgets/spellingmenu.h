@@ -22,13 +22,10 @@
 
 #include <QMenu>
 #include <QString>
-#include <QLoggingCategory>
 
 namespace Sonnet {
     class Highlighter;
 }
-
-Q_DECLARE_LOGGING_CATEGORY(spellingMenu)
 
 /**
  * @class SpellingMenu spellingmenu.h
