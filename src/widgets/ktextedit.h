@@ -24,11 +24,8 @@
 
 #include <sonnet/highlighter.h>
 #include <QTextEdit>
-#include <QLoggingCategory>
 
 class SpellingMenu;
-
-Q_DECLARE_LOGGING_CATEGORY(ktextwidgets)
 
 namespace Sonnet {
 class SpellCheckDecorator;

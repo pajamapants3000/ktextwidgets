@@ -23,31 +23,23 @@
 
 #include "ktextedit.h"
 
-Q_LOGGING_CATEGORY(spellingMenu, "ktextwidgets.spellingmenu", QtWarningMsg)
-
 SpellingMenu::SpellingMenu(QMenu* parent, Sonnet::Highlighter *highlighter, QString word) :
     QMenu { parent },
     m_highlighter { highlighter },
     m_word { word },
     m_suggestions {}
 {
-    qCDebug(spellingMenu, "Creating spelling menu for word '%s'.", m_word.toStdString().c_str());
-
     setTitle(i18n("Spelling"));
 
     setEnabled(m_highlighter->isWordMisspelled(m_word));
     if (isEnabled()) {
-        qCDebug(spellingMenu, "'%s' appears to be misspelled.", m_word.toStdString().c_str());
         m_suggestions = m_highlighter->suggestionsForWord(m_word);
     }
 
     connect(this, &QMenu::aboutToShow, this, &SpellingMenu::populateMenu);
 }
 
-SpellingMenu::~SpellingMenu()
-{
-    qCDebug(spellingMenu, "Destroying spelling menu.");
-}
+SpellingMenu::~SpellingMenu() { }
 
 QString SpellingMenu::word() const
 {
@@ -66,24 +58,10 @@ bool SpellingMenu::isWordMisspelled() const
 
 void SpellingMenu::populateMenu()
 {
-    qCDebug(spellingMenu, "Populating spelling menu actions.");
-
-    qCDebug(spellingMenu, "Adding suggestions for '%s'.", m_word.toStdString().c_str());
     for (const QString& suggestion : m_suggestions) {
-
-        qCDebug(spellingMenu,
-            "Adding suggestion '%s' to menu.",
-            suggestion.toStdString().c_str());
-
         QAction *action = new QAction(suggestion, this);
         connect(action, &QAction::triggered,
-            [&](bool) {
-                qCDebug(spellingMenu, "Replacing '%s' with '%s'.",
-                        m_word.toStdString().c_str(),
-                        suggestion.toStdString().c_str());
-
-                        emit replaceWordBySuggestion(suggestion);
-                    });
+            [&](bool) { emit replaceWordBySuggestion(suggestion); });
         addAction(action);
     }
 
@@ -99,22 +77,18 @@ void SpellingMenu::populateMenu()
         this, &SpellingMenu::addCurrentWordToDictionary);
     addAction(addToDict);
 
-    qCDebug(spellingMenu, "Finished populating spelling menu.");
-
     // make sure we don't do this again
     disconnect(this, &QMenu::aboutToShow, this, &SpellingMenu::populateMenu);
 }
 
 void SpellingMenu::addCurrentWordToDictionary()
 {
-    qCDebug(spellingMenu, "Adding '%s' to dictionary.", m_word.toStdString().c_str());
     m_highlighter->addWordToDictionary(m_word);
     m_highlighter->rehighlight();
 }
 
 void SpellingMenu::ignoreCurrentWord()
 {
-    qCDebug(spellingMenu, "Ignoring word '%s'.", m_word.toStdString().c_str());
     m_highlighter->ignoreWord(m_word);
     m_highlighter->rehighlight();
 }
