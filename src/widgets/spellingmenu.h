@@ -31,77 +31,84 @@ namespace Sonnet {
  * @class SpellingMenu spellingmenu.h
  *
  * @short A menu of spelling suggestions and actions associated with a
- * specific, possibly misspelled, word.
+ * single specific, possibly misspelled, word.
  *
  * This menu can easily be embedded in a context menu, and/or queried for
  * information such as spelling suggestions provided by the Sonnet
- * Highlighter provided at construction.
+ * Highlighter provided at construction. @c replaceWordBySuggestion
+ * signals when spell correction is requested by the end-user, and provides
+ * the replacement word to the slot.
+ *
+ * Dictionary updates ("add word to dictionary" and "ignore word")
+ * are handled internally, without any extra effort required from the parent.
+ * Slots are available to facilitate these actions on-demand if needed.
  *
  * This class was originally written to support integrated spelling
- * suggestions in the KTextEdit context menu.
+ * suggestions in the KTextEdit context menu. It is intended to be usable
+ * with any menu; subclasses may override populateMenu() to customize
+ * available actions, their behavior, and their layout.
  *
+ * @see QMenu
  * @see KTextEdit
  * @see Sonnet::Highlighter
- * @see QMenu
  * @author Tommy Lincoln <pajamapants3000@gmail.com>
  */
 class SpellingMenu : public QMenu
 {
     Q_OBJECT
+    Q_PROPERTY(QString word READ word CONSTANT)
+    Q_PROPERTY(QStringList suggestions READ suggestions CONSTANT)
+    Q_PROPERTY(bool isWordMisspelled READ isWordMisspelled CONSTANT)
 
 public:
     /**
-     * @brief SpellingMenu Constructs a SpellingMenu
-     * @param parent the parent menu which will contain this
-     * SpellingMenu instance
+     * @brief Constructs a SpellingMenu
+     * @param parent the parent menu which will contain this SpellingMenu instance
      * @param highlighter the Sonnet highlighter which will provide spelling
      * functionality and information
      * @param word the word for which spelling options will be provided in this
      * SpellingMenu instance
      */
-    explicit SpellingMenu(QMenu* parent, Sonnet::Highlighter *highlighter, QString word);
+    SpellingMenu(QMenu* parent, Sonnet::Highlighter *highlighter, const QString &word);
     /**
-     * @brief ~SpellingMenu Destroys the SpellingMenu object and components
+     * @brief Destroys the SpellingMenu object and components
      */
     virtual ~SpellingMenu();
 
     /**
-     * @brief word
      * @return the @c word argument provided at construction
      */
     QString word() const;
 
     /**
-     * @brief suggestions
      * @return list of spelling suggestions provided by the Sonnet highlighter
      * for @c word
      */
     QStringList suggestions() const;
 
     /**
-     * @brief isWordMisspelled
-     * @return whether @c word is misspelled according to the Sonnet highlighter
+     * @return true if @c word is misspelled according to the Sonnet highlighter,
+     * false otherwise
      */
     bool isWordMisspelled() const;
 
 protected:
     /**
-     * @brief populateMenu loads spelling suggestions and other available
+     * @brief loads spelling suggestions and other available
      * actions into the menu
      */
     virtual void populateMenu();
 
 Q_SIGNALS:
     /**
-     * @brief replaceWordBySuggestion emitted when the end user selects a
-     * spelling suggestion
+     * @brief emitted when the end-user selects a spelling suggestion
      * @param suggestion the suggestion selected by the end user
      */
     void replaceWordBySuggestion(const QString &suggestion);
 
 protected Q_SLOTS:
-    void addCurrentWordToDictionary();
-    void ignoreCurrentWord();
+    void addWordToDictionary();
+    void ignoreWord();
 
 private:
     Sonnet::Highlighter *m_highlighter;
