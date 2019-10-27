@@ -228,38 +228,46 @@ public:
     void forceSpellChecking();
 
     /**
-     * @brief setUseSonnetMenu set flag that determines whether inline spell-
-     * checking is performed using the built-in Sonnet spell-check menu
+     * @brief set flag that determines whether inline spell-checking is
+     * performed using the built-in Sonnet spell-check menu
      * @param useSonnet set to @c true to use the Sonnet menu, @c false to use
-     * the standard menu
+     * the standard context menu
+     * @note default value is @c true
      * @see useSonnetMenu()
+     * @since 5.64
      */
     void setUseSonnetMenu(bool useSonnet);
 
     /**
-     * @brief useSonnetMenu
-     * @return @c true if editor uses Sonnet menu for inline spell-checking,
-     * @c false if the standard context menu will be used
-     * @default @c true
+     * @return @c true (default) if editor uses Sonnet menu for inline
+     * spell-checking, @c false if the standard context menu will be used
      * @see setUseSonnetMenu()
+     * @since 5.64
      */
     bool useSonnetMenu() const;
 
     /**
-     * @brief setShowSpellSuggestCount set the maximum number of spelling
-     * suggestions to show at the top level of the context menu
-     * @param count the new value for @c showSpellSuggestCount
-     * @see showSpellSuggestCount()
+     * @brief set the maximum number of spelling suggestions to show at the top
+     * level of the context menu
+     * @param count the new value for @c showSpellSuggestMaxCount
+     * @note not used if useSonnetMenu() is @c true
+     * @see showSpellSuggestMaxCount()
+     * @see useSonnetMenu()
+     * @see setUseSonnetMenu()
+     * @since 5.64
      */
-    void setShowSpellSuggestCount(int count);
+    void setShowSpellSuggestMaxCount(int count);
 
     /**
-     * @brief showSpellSuggestCount
      * @return maximum count of spelling suggestions to show at the top level
      * of the context menu
+     * @note not used if useSonnetMenu() is @c true
      * @see setShowSpellSuggestCount()
+     * @see useSonnetMenu()
+     * @see setUseSonnetMenu()
+     * @since 5.64
      */
-    int showSpellSuggestCount() const;
+    int showSpellSuggestMaxCount() const;
 
 Q_SIGNALS:
     /**
@@ -416,7 +424,7 @@ protected:
     virtual void deleteWordForward();
 
     /**
-     * @brief replaceText Replace @p cursor selection with @p replacement
+     * @brief Replace @p cursor selection with @p replacement
      * @param replacement the word that will replace the @p cursor selection
      * @param cursor contains selection to be replaced by @p replacement
      */
@@ -429,13 +437,13 @@ protected:
     void contextMenuEvent(QContextMenuEvent *) override;
 
     /**
-     * @brief createSpellingMenu Create new spelling menu for a pending context menu
+     * @brief Create new spelling menu for a pending context menu
      * @param event triggered the menu which will contain a spelling menu
      */
     void createSpellingMenu(QContextMenuEvent *event);
 
     /**
-     * @brief insertSpellingSuggestions Insert top suggestions and spelling menu into context menu
+     * @brief Insert top suggestions and spelling menu into context menu
      * @param popupMenu the intended parent context menu
      * @param spellingMenu the spelling menu to add, which also has spelling
      * information, such as the list of suggestions
@@ -443,8 +451,11 @@ protected:
      * top level of the context menu
      * @param atIndex the desired starting index of the spelling suggestions
      * in the parent context menu; defaults to the top-most part of the menu (index 0).
+     * @return index immediately following the index of the last item added to
+     * @c popupMenu, or @c atIndex if nothing was added
      */
-    void insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu, int topResultCount, int atIndex = 0);
+    int insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu,
+                                   int topResultCount, int atIndex = 0);
 
 private:
     class Private;

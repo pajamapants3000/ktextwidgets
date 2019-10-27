@@ -81,7 +81,7 @@ public:
 #ifdef HAVE_SPEECH
           textToSpeech(nullptr),
 #endif
-          showSpellSuggestCount(5),     // arbitrary default value
+          showSpellSuggestMaxCount(5),     // arbitrary default value
           findIndex(0), repIndex(0),
           lastReplacedPosition(-1)
     {
@@ -161,7 +161,7 @@ public:
     QTextToSpeech *textToSpeech;
 #endif
 
-    int showSpellSuggestCount;
+    int showSpellSuggestMaxCount;
     int findIndex, repIndex;
     int lastReplacedPosition;
 };
@@ -555,14 +555,14 @@ bool KTextEdit::useSonnetMenu() const
     return d->useSonnetMenu;
 }
 
-void KTextEdit::setShowSpellSuggestCount(int count)
+void KTextEdit::setShowSpellSuggestMaxCount(int count)
 {
-    d->showSpellSuggestCount = count;
+    d->showSpellSuggestMaxCount = count;
 }
 
-int KTextEdit::showSpellSuggestCount() const
+int KTextEdit::showSpellSuggestMaxCount() const
 {
-    return d->showSpellSuggestCount;
+    return d->showSpellSuggestMaxCount;
 }
 
 QMenu *KTextEdit::mousePopupMenu()
@@ -610,7 +610,9 @@ QMenu *KTextEdit::mousePopupMenu()
 
             if (checkSpellingEnabled()) {
                 if (!emptyDocument && !useSonnetMenu() && d->spellingMenu) {
-                    insertSpellingSuggestions(popup, d->spellingMenu, d->showSpellSuggestCount);
+                    int i { insertSpellingSuggestions(popup, d->spellingMenu,
+                                                      d->showSpellSuggestMaxCount) };
+                    popup->insertSeparator(popup->actions().at(i));
                 }
 
                 d->languagesMenu = new QMenu(i18n("Spell Checking Language"), popup);
@@ -683,28 +685,31 @@ QMenu *KTextEdit::mousePopupMenu()
     return popup;
 }
 
-void KTextEdit::insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu, int topResultCount, int atIndex) {
-    if (!popupMenu || !spellingMenu || !spellingMenu->isWordMisspelled()) return;
+int KTextEdit::insertSpellingSuggestions(QMenu* popupMenu, SpellingMenu* spellingMenu,
+                                         int topResultCount, int atIndex) {
+    if (!popupMenu || !spellingMenu || !spellingMenu->isWordMisspelled()) return atIndex;
 
     QStringList suggestions { spellingMenu->suggestions() };
-    QString word { spellingMenu->word() };
-    int topResultsToShowCount { topResultCount < suggestions.size() ? topResultCount : suggestions.size() };
-
+    int topResultsToShowCount { topResultCount < suggestions.size()
+                                ? topResultCount
+                                : suggestions.size() };
     int startingIndex { atIndex < popupMenu->actions().size() ? atIndex : 0 };
-    int i {0};
-    while (i < topResultsToShowCount) {
-        QString suggestion { suggestions.at(i) };
+
+    int curIdx {0};
+    while (curIdx < topResultsToShowCount) {
+        QString suggestion { suggestions.at(curIdx) };
 
         QAction *action { new QAction(suggestion, popupMenu) };
         connect(action, &QAction::triggered,
             [=](bool) { spellingMenu->replaceWordBySuggestion(suggestion); });
-        popupMenu->insertAction(popupMenu->actions().at(startingIndex + i++), action);
+        popupMenu->insertAction(popupMenu->actions().at(startingIndex + curIdx++), action);
     }
+    if (curIdx > 0) popupMenu->insertSeparator(popupMenu->actions().at(startingIndex + curIdx++));
 
-    popupMenu->insertSeparator(popupMenu->actions().at(startingIndex + i++));
-    popupMenu->insertMenu(popupMenu->actions().at(startingIndex + i++), spellingMenu);
-    popupMenu->insertSeparator(popupMenu->actions().at(startingIndex + i++));
+    popupMenu->insertMenu(popupMenu->actions().at(startingIndex + curIdx++), spellingMenu);
     spellingMenu->setParent(popupMenu, popupMenu->windowFlags());
+
+    return curIdx;
 }
 
 void KTextEdit::slotSpeakText()
@@ -748,7 +753,8 @@ void KTextEdit::createSpellingMenu(QContextMenuEvent *event)
     }
     cursor.select(QTextCursor::WordUnderCursor);
 
-    d->spellingMenu = new SpellingMenu(nullptr, d->decorator->highlighter(), cursor.selectedText());
+    d->spellingMenu = new SpellingMenu(nullptr,
+                                       d->decorator->highlighter(), cursor.selectedText());
 
     connect(d->spellingMenu,
             &SpellingMenu::replaceWordBySuggestion,

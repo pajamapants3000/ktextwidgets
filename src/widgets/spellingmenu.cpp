@@ -23,7 +23,7 @@
 
 #include "ktextedit.h"
 
-SpellingMenu::SpellingMenu(QMenu* parent, Sonnet::Highlighter *highlighter, QString word) :
+SpellingMenu::SpellingMenu(QMenu* parent, Sonnet::Highlighter *highlighter, const QString &word) :
     QMenu { parent },
     m_highlighter { highlighter },
     m_word { word },
@@ -69,25 +69,25 @@ void SpellingMenu::populateMenu()
 
     QAction* ignoreWord = new QAction(i18n("Ignore Word"), this);
     connect(ignoreWord, &QAction::triggered,
-        this, &SpellingMenu::ignoreCurrentWord);
+        this, &SpellingMenu::ignoreWord);
     addAction(ignoreWord);
 
     QAction* addToDict = new QAction(i18n("Add to Dictionary"), this);
     connect(addToDict, &QAction::triggered,
-        this, &SpellingMenu::addCurrentWordToDictionary);
+        this, &SpellingMenu::addWordToDictionary);
     addAction(addToDict);
 
     // make sure we don't do this again
     disconnect(this, &QMenu::aboutToShow, this, &SpellingMenu::populateMenu);
 }
 
-void SpellingMenu::addCurrentWordToDictionary()
+void SpellingMenu::addWordToDictionary()
 {
     m_highlighter->addWordToDictionary(m_word);
     m_highlighter->rehighlight();
 }
 
-void SpellingMenu::ignoreCurrentWord()
+void SpellingMenu::ignoreWord()
 {
     m_highlighter->ignoreWord(m_word);
     m_highlighter->rehighlight();
